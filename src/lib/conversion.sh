@@ -136,6 +136,15 @@ handle_conversion_result() {
 #   no_images - No images flag (optional)
 #   move_originals - Directory to move originals (optional)
 #   keep_originals - Keep originals flag (optional)
+# Args (positional):
+#   $1 - input_file - Path to input file
+#   $2 - output_dir - Output directory (optional)
+#   $3 - output_format - Output format (markdown, json, html, chunks)
+#   $4 - use_llm - Use LLM flag (optional)
+#   $5 - llm_service - LLM service name (optional)
+#   $6 - api_key_override - API key override (optional)
+#   $7 - relative_path - Relative path for preserving directory structure (optional)
+#   $8+ - additional_opts - Additional options
 # Returns:
 #   Exit code indicating success or failure
 convert_single_file() {
@@ -145,9 +154,10 @@ convert_single_file() {
   local use_llm="${4:-}"
   local llm_service="${5:-}"
   local api_key_override="${6:-}"
+  local relative_path="${7:-}"
 
   # Additional options passed as remaining arguments
-  shift 6 || true
+  shift 7 || true
   local additional_opts=("$@")
 
   log_debug "Starting conversion of: $input_file"
@@ -230,7 +240,7 @@ convert_single_file() {
 
   # Step 8: Success
   local output_file
-  output_file="$(get_output_filename "$input_file" "$abs_output_dir" "$output_format")"
+  output_file="$(get_output_filename "$input_file" "$output_format" "$abs_output_dir" "$relative_path")"
   log_info "Output saved to: $output_file"
 
   return "$EXIT_SUCCESS"

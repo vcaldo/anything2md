@@ -106,7 +106,8 @@ fi
 log_info "Converting: $(basename "$input_file")"
 
 # Call the conversion function with all parameters
-# Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, additional_options...
+# Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, relative_path, additional_options...
+# Note: relative_path is empty string for single-file conversion (no directory structure preservation needed)
 convert_single_file \
   "$input_file" \
   "$output_dir" \
@@ -114,6 +115,7 @@ convert_single_file \
   "$use_llm" \
   "$llm_service" \
   "$api_key_override" \
+  "" \
   "${additional_options[@]}"
 
 conversion_exit_code=$?
@@ -134,7 +136,8 @@ fi
 
 # Step 9: Display result message with output path
 if [[ $conversion_exit_code -eq 0 ]]; then
-  output_file=$(get_output_filename "$input_file" "$output_dir" "$output_format")
+  # Get output filename with corrected parameter order: input_file, output_format, output_dir, relative_path
+  output_file=$(get_output_filename "$input_file" "$output_format" "$output_dir" "")
   log_success "Conversion complete: $output_file"
 else
   log_error "Conversion failed with exit code: $conversion_exit_code"

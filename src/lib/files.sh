@@ -9,20 +9,30 @@
 #   $1 - input_file (path to input file)
 #   $2 - output_format (markdown|json|html|chunks, default: markdown)
 #   $3 - output_dir (optional, defaults to input file directory)
+#   $4 - relative_path (optional, preserves directory structure under output_dir)
 # Returns:
 #   Prints the full output file path
 # Example:
 #   get_output_filename "/path/to/file.pdf" "markdown" "/output"
 #   -> /output/file.md
+#   get_output_filename "/docs/reports/2024/q1.pdf" "markdown" "/output" "reports/2024/q1.pdf"
+#   -> /output/reports/2024/q1.md
 get_output_filename() {
   local input_file="$1"
   local output_format="${2:-markdown}"
   local output_dir="$3"
+  local relative_path="${4:-}"
 
   # Get the base filename without extension
-  local basename
-  basename="$(basename "$input_file")"
-  local filename_no_ext="${basename%.*}"
+  local basename_with_ext
+  if [[ -n "$relative_path" ]]; then
+    # Use basename from relative_path if provided
+    basename_with_ext="$(basename "$relative_path")"
+  else
+    # Use basename from input_file
+    basename_with_ext="$(basename "$input_file")"
+  fi
+  local filename_no_ext="${basename_with_ext%.*}"
 
   # Determine file extension based on format
   local ext
@@ -38,12 +48,64 @@ get_output_filename() {
   local out_dir
   if [[ -n "$output_dir" ]]; then
     out_dir="$output_dir"
+
+    # If relative_path is provided, preserve directory structure under output_dir
+    if [[ -n "$relative_path" ]]; then
+      local relative_dir
+      relative_dir="$(dirname "$relative_path")"
+
+      # Only append if relative_dir is not "." (current directory)
+      if [[ "$relative_dir" != "." ]]; then
+        out_dir="${output_dir}/${relative_dir}"
+      fi
+    fi
   else
     out_dir="$(dirname "$input_file")"
   fi
 
   # Return full output path
   echo "${out_dir}/${filename_no_ext}.${ext}"
+}
+
+# calculate_relative_path - Calculate relative path from base directory to target file
+# Args:
+#   $1 - base_dir (absolute path to base directory)
+#   $2 - target_file (absolute path to target file)
+# Returns:
+#   Prints the relative path from base_dir to target_file
+# Example:
+#   calculate_relative_path "/docs" "/docs/reports/2024/q1.pdf"
+#   -> reports/2024/q1.pdf
+calculate_relative_path() {
+  local base_dir="$1"
+  local target_file="$2"
+
+  # Normalize base_dir to absolute path (directory must exist)
+  if [[ ! -d "$base_dir" ]]; then
+    # If base_dir doesn't exist, try to realize it anyway
+    base_dir=$(cd "$(dirname "$base_dir")" 2>/dev/null && pwd)/$(basename "$base_dir") || echo "$base_dir"
+  else
+    base_dir=$(cd "$base_dir" && pwd)
+  fi
+
+  # For target_file, normalize the path without requiring it to exist
+  # Remove any /. or // in the path
+  target_file="${target_file//\/\//\/}"
+
+  # Remove trailing slashes
+  base_dir="${base_dir%/}"
+  target_file="${target_file%/}"
+
+  # Strip base_dir prefix from target_file path
+  local relative_path="${target_file#$base_dir/}"
+
+  # Handle edge case where base_dir is not a prefix of target_file
+  if [[ "$relative_path" == "$target_file" ]]; then
+    # Paths don't share a common base, return just the basename
+    basename "$target_file"
+  else
+    echo "$relative_path"
+  fi
 }
 
 # get_output_directory - Resolve output directory (handles relative paths)
@@ -98,15 +160,17 @@ ensure_output_directory() {
 #   $1 - input_file path
 #   $2 - output_format (optional, default: markdown)
 #   $3 - output_dir (optional)
+#   $4 - relative_path (optional, for preserving directory structure)
 # Returns:
 #   0 if already converted (output exists), 1 if not converted
 is_already_converted() {
   local input_file="$1"
   local output_format="${2:-markdown}"
   local output_dir="$3"
+  local relative_path="${4:-}"
 
   local output_file
-  output_file="$(get_output_filename "$input_file" "$output_format" "$output_dir")"
+  output_file="$(get_output_filename "$input_file" "$output_format" "$output_dir" "$relative_path")"
 
   if [[ -f "$output_file" ]]; then
     return 0  # Already converted

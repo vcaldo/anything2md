@@ -958,6 +958,15 @@ handle_conversion_result() {
 #   no_images - No images flag (optional)
 #   move_originals - Directory to move originals (optional)
 #   keep_originals - Keep originals flag (optional)
+# Args (positional):
+#   $1 - input_file - Path to input file
+#   $2 - output_dir - Output directory (optional)
+#   $3 - output_format - Output format (markdown, json, html, chunks)
+#   $4 - use_llm - Use LLM flag (optional)
+#   $5 - llm_service - LLM service name (optional)
+#   $6 - api_key_override - API key override (optional)
+#   $7 - relative_path - Relative path for preserving directory structure (optional)
+#   $8+ - additional_opts - Additional options
 # Returns:
 #   Exit code indicating success or failure
 convert_single_file() {
@@ -967,9 +976,10 @@ convert_single_file() {
   local use_llm="${4:-}"
   local llm_service="${5:-}"
   local api_key_override="${6:-}"
+  local relative_path="${7:-}"
 
   # Additional options passed as remaining arguments
-  shift 6 || true
+  shift 7 || true
   local additional_opts=("$@")
 
   log_debug "Starting conversion of: $input_file"
@@ -1052,7 +1062,7 @@ convert_single_file() {
 
   # Step 8: Success
   local output_file
-  output_file="$(get_output_filename "$input_file" "$abs_output_dir" "$output_format")"
+  output_file="$(get_output_filename "$input_file" "$output_format" "$abs_output_dir" "$relative_path")"
   log_info "Output saved to: $output_file"
 
   return "$EXIT_SUCCESS"
@@ -1404,20 +1414,30 @@ run_docker_command() {
 #   $1 - input_file (path to input file)
 #   $2 - output_format (markdown|json|html|chunks, default: markdown)
 #   $3 - output_dir (optional, defaults to input file directory)
+#   $4 - relative_path (optional, preserves directory structure under output_dir)
 # Returns:
 #   Prints the full output file path
 # Example:
 #   get_output_filename "/path/to/file.pdf" "markdown" "/output"
 #   -> /output/file.md
+#   get_output_filename "/docs/reports/2024/q1.pdf" "markdown" "/output" "reports/2024/q1.pdf"
+#   -> /output/reports/2024/q1.md
 get_output_filename() {
   local input_file="$1"
   local output_format="${2:-markdown}"
   local output_dir="$3"
+  local relative_path="${4:-}"
 
   # Get the base filename without extension
-  local basename
-  basename="$(basename "$input_file")"
-  local filename_no_ext="${basename%.*}"
+  local basename_with_ext
+  if [[ -n "$relative_path" ]]; then
+    # Use basename from relative_path if provided
+    basename_with_ext="$(basename "$relative_path")"
+  else
+    # Use basename from input_file
+    basename_with_ext="$(basename "$input_file")"
+  fi
+  local filename_no_ext="${basename_with_ext%.*}"
 
   # Determine file extension based on format
   local ext
@@ -1433,12 +1453,64 @@ get_output_filename() {
   local out_dir
   if [[ -n "$output_dir" ]]; then
     out_dir="$output_dir"
+
+    # If relative_path is provided, preserve directory structure under output_dir
+    if [[ -n "$relative_path" ]]; then
+      local relative_dir
+      relative_dir="$(dirname "$relative_path")"
+
+      # Only append if relative_dir is not "." (current directory)
+      if [[ "$relative_dir" != "." ]]; then
+        out_dir="${output_dir}/${relative_dir}"
+      fi
+    fi
   else
     out_dir="$(dirname "$input_file")"
   fi
 
   # Return full output path
   echo "${out_dir}/${filename_no_ext}.${ext}"
+}
+
+# calculate_relative_path - Calculate relative path from base directory to target file
+# Args:
+#   $1 - base_dir (absolute path to base directory)
+#   $2 - target_file (absolute path to target file)
+# Returns:
+#   Prints the relative path from base_dir to target_file
+# Example:
+#   calculate_relative_path "/docs" "/docs/reports/2024/q1.pdf"
+#   -> reports/2024/q1.pdf
+calculate_relative_path() {
+  local base_dir="$1"
+  local target_file="$2"
+
+  # Normalize base_dir to absolute path (directory must exist)
+  if [[ ! -d "$base_dir" ]]; then
+    # If base_dir doesn't exist, try to realize it anyway
+    base_dir=$(cd "$(dirname "$base_dir")" 2>/dev/null && pwd)/$(basename "$base_dir") || echo "$base_dir"
+  else
+    base_dir=$(cd "$base_dir" && pwd)
+  fi
+
+  # For target_file, normalize the path without requiring it to exist
+  # Remove any /. or // in the path
+  target_file="${target_file//\/\//\/}"
+
+  # Remove trailing slashes
+  base_dir="${base_dir%/}"
+  target_file="${target_file%/}"
+
+  # Strip base_dir prefix from target_file path
+  local relative_path="${target_file#$base_dir/}"
+
+  # Handle edge case where base_dir is not a prefix of target_file
+  if [[ "$relative_path" == "$target_file" ]]; then
+    # Paths don't share a common base, return just the basename
+    basename "$target_file"
+  else
+    echo "$relative_path"
+  fi
 }
 
 # get_output_directory - Resolve output directory (handles relative paths)
@@ -1493,15 +1565,17 @@ ensure_output_directory() {
 #   $1 - input_file path
 #   $2 - output_format (optional, default: markdown)
 #   $3 - output_dir (optional)
+#   $4 - relative_path (optional, for preserving directory structure)
 # Returns:
 #   0 if already converted (output exists), 1 if not converted
 is_already_converted() {
   local input_file="$1"
   local output_format="${2:-markdown}"
   local output_dir="$3"
+  local relative_path="${4:-}"
 
   local output_file
-  output_file="$(get_output_filename "$input_file" "$output_format" "$output_dir")"
+  output_file="$(get_output_filename "$input_file" "$output_format" "$output_dir" "$relative_path")"
 
   if [[ -f "$output_file" ]]; then
     return 0  # Already converted
@@ -2308,7 +2382,8 @@ anything2md_convert_command() {
   log_info "Converting: $(basename "$input_file")"
 
   # Call the conversion function with all parameters
-  # Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, additional_options...
+  # Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, relative_path, additional_options...
+  # Note: relative_path is empty string for single-file conversion (no directory structure preservation needed)
   convert_single_file \
     "$input_file" \
     "$output_dir" \
@@ -2316,6 +2391,7 @@ anything2md_convert_command() {
     "$use_llm" \
     "$llm_service" \
     "$api_key_override" \
+    "" \
     "${additional_options[@]}"
 
   conversion_exit_code=$?
@@ -2336,7 +2412,8 @@ anything2md_convert_command() {
 
   # Step 9: Display result message with output path
   if [[ $conversion_exit_code -eq 0 ]]; then
-    output_file=$(get_output_filename "$input_file" "$output_dir" "$output_format")
+    # Get output filename with corrected parameter order: input_file, output_format, output_dir, relative_path
+    output_file=$(get_output_filename "$input_file" "$output_format" "$output_dir" "")
     log_success "Conversion complete: $output_file"
   else
     log_error "Conversion failed with exit code: $conversion_exit_code"
@@ -2450,7 +2527,13 @@ anything2md_batch_command() {
   if [[ -n "$skip_processed" ]]; then
     unprocessed_files=()
     for file in "${files[@]}"; do
-      if ! is_already_converted "$file" "$output_format" "$output_dir"; then
+      # Calculate relative path for structure-aware skip check
+      local file_relative_path=""
+      if [[ -n "$output_dir" ]]; then
+        file_relative_path=$(calculate_relative_path "$input_dir" "$file")
+      fi
+
+      if ! is_already_converted "$file" "$output_format" "$output_dir" "$file_relative_path"; then
         unprocessed_files+=("$file")
       else
         log_debug "Skipping already converted file: $file"
@@ -2477,15 +2560,32 @@ anything2md_batch_command() {
   process_file() {
     local file="$1"
     local file_output_dir="$output_dir"
+    local relative_path=""
 
     # If no output_dir specified, use input file's directory
     if [[ -z "$file_output_dir" ]]; then
       file_output_dir=$(dirname "$file")
+    else
+      # Calculate relative path to preserve directory structure under output_dir
+      relative_path=$(calculate_relative_path "$input_dir" "$file")
+
+      # Create subdirectories to match the relative path structure
+      local relative_dir
+      relative_dir="$(dirname "$relative_path")"
+
+      if [[ "$relative_dir" != "." ]]; then
+        local target_subdir="${file_output_dir}/${relative_dir}"
+        if ! ensure_output_directory "$target_subdir"; then
+          log_error "Failed to create output subdirectory: $target_subdir"
+          return "$EXIT_DIR_NOT_FOUND"
+        fi
+      fi
     fi
 
     log_info "Processing: $(basename "$file")"
 
     # Call convert_single_file from conversion.sh
+    # Pass relative_path as 7th parameter for directory structure preservation
     if convert_single_file \
       "$file" \
       "$file_output_dir" \
@@ -2493,6 +2593,7 @@ anything2md_batch_command() {
       "$use_llm" \
       "$llm_service" \
       "$api_key_override" \
+      "$relative_path" \
       "${additional_options[@]+"${additional_options[@]}"}"; then
 
       # Handle move/keep originals
@@ -2521,7 +2622,11 @@ anything2md_batch_command() {
   export -f log_success
   export -f log_warning
   export -f log_debug
-  export output_format use_llm llm_service api_key_override move_originals
+  export -f calculate_relative_path
+  export -f ensure_output_directory
+  export -f is_already_converted
+  export -f move_original_file
+  export output_format use_llm llm_service api_key_override move_originals input_dir
   export -a additional_options
 
   # Process files based on worker count

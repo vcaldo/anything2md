@@ -98,7 +98,13 @@ fi
 if [[ -n "$skip_processed" ]]; then
   unprocessed_files=()
   for file in "${files[@]}"; do
-    if ! is_already_converted "$file" "$output_format" "$output_dir"; then
+    # Calculate relative path for structure-aware skip check
+    local file_relative_path=""
+    if [[ -n "$output_dir" ]]; then
+      file_relative_path=$(calculate_relative_path "$input_dir" "$file")
+    fi
+
+    if ! is_already_converted "$file" "$output_format" "$output_dir" "$file_relative_path"; then
       unprocessed_files+=("$file")
     else
       log_debug "Skipping already converted file: $file"
@@ -125,15 +131,32 @@ declare -a failed_files
 process_file() {
   local file="$1"
   local file_output_dir="$output_dir"
+  local relative_path=""
 
   # If no output_dir specified, use input file's directory
   if [[ -z "$file_output_dir" ]]; then
     file_output_dir=$(dirname "$file")
+  else
+    # Calculate relative path to preserve directory structure under output_dir
+    relative_path=$(calculate_relative_path "$input_dir" "$file")
+
+    # Create subdirectories to match the relative path structure
+    local relative_dir
+    relative_dir="$(dirname "$relative_path")"
+
+    if [[ "$relative_dir" != "." ]]; then
+      local target_subdir="${file_output_dir}/${relative_dir}"
+      if ! ensure_output_directory "$target_subdir"; then
+        log_error "Failed to create output subdirectory: $target_subdir"
+        return "$EXIT_DIR_NOT_FOUND"
+      fi
+    fi
   fi
 
   log_info "Processing: $(basename "$file")"
 
   # Call convert_single_file from conversion.sh
+  # Pass relative_path as 7th parameter for directory structure preservation
   if convert_single_file \
     "$file" \
     "$file_output_dir" \
@@ -141,6 +164,7 @@ process_file() {
     "$use_llm" \
     "$llm_service" \
     "$api_key_override" \
+    "$relative_path" \
     "${additional_options[@]+"${additional_options[@]}"}"; then
 
     # Handle move/keep originals
@@ -169,7 +193,11 @@ export -f log_error
 export -f log_success
 export -f log_warning
 export -f log_debug
-export output_format use_llm llm_service api_key_override move_originals
+export -f calculate_relative_path
+export -f ensure_output_directory
+export -f is_already_converted
+export -f move_original_file
+export output_format use_llm llm_service api_key_override move_originals input_dir
 export -a additional_options
 
 # Process files based on worker count
