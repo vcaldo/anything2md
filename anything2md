@@ -2634,9 +2634,9 @@ anything2md_batch_command() {
     # Sequential processing
     for file in "${files[@]}"; do
       if process_file "$file"; then
-        ((success_count++))
+        ((success_count++)) || true
       else
-        ((failure_count++))
+        ((failure_count++)) || true
         failed_files+=("$file")
       fi
     done
@@ -2658,21 +2658,24 @@ anything2md_batch_command() {
       while [[ "$job_count" -ge "$workers" ]]; do
         # Wait for any job to finish
         wait -n 2>/dev/null || true
-        ((job_count--))
+        ((job_count--)) || true
       done
+
+      # Capture current job index BEFORE spawning subshell
+      local current_index=$job_index
 
       # Start background job
       (
         if process_file "$file"; then
-          echo "success" > "$job_dir/$job_index.status"
+          echo "success" > "$job_dir/$current_index.status"
         else
-          echo "failure" > "$job_dir/$job_index.status"
-          echo "$file" > "$job_dir/$job_index.file"
+          echo "failure" > "$job_dir/$current_index.status"
+          echo "$file" > "$job_dir/$current_index.file"
         fi
       ) &
 
-      ((job_count++))
-      ((job_index++))
+      ((job_count++)) || true
+      ((job_index++)) || true
     done
 
     # Wait for all remaining jobs to complete
@@ -2683,9 +2686,9 @@ anything2md_batch_command() {
       [[ -e "$status_file" ]] || continue
       status=$(cat "$status_file")
       if [[ "$status" == "success" ]]; then
-        ((success_count++))
+        ((success_count++)) || true
       else
-        ((failure_count++))
+        ((failure_count++)) || true
         file_index=$(basename "$status_file" .status)
         if [[ -e "$job_dir/$file_index.file" ]]; then
           failed_files+=("$(cat "$job_dir/$file_index.file")")
