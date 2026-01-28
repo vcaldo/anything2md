@@ -1,0 +1,373 @@
+name: anything2md
+help: |-
+  Convert documents and images to markdown using the marker Docker image.
+
+  Supported formats: PDF, DOCX, XLSX, PPTX, EPUB, HTML, PNG, JPG, JPEG, TIFF, BMP
+
+  Quick usage:
+    anything2md convert document.pdf         # Convert single file
+    anything2md batch ./docs --recursive     # Convert directory
+    anything2md config check                 # Verify dependencies
+version: 0.1.0
+
+environment_variables:
+- name: output_format
+  help: 'Default output format (markdown, json, html, chunks)'
+  default: markdown
+- name: output_dir
+  help: Default output directory
+- name: vram
+  help: GPU VRAM limit in GB
+- name: llm_service
+  help: 'Default LLM provider (gemini, claude, openai, ollama)'
+- name: gemini_api_key
+  help: Google Gemini API key
+- name: anthropic_api_key
+  help: Anthropic Claude API key
+- name: openai_api_key
+  help: OpenAI API key
+- name: ollama_url
+  help: Ollama base URL
+  default: http://localhost:11434
+- name: debug
+  help: 'Enable debug mode (0 or 1)'
+  default: "0"
+
+commands:
+- name: convert
+  alias: c
+  help: |-
+    Convert a single document or image to markdown format.
+
+    This command processes one file at a time using the marker Docker image. It supports
+    various document formats (PDF, DOCX, XLSX, PPTX, EPUB, HTML) and image formats
+    (PNG, JPG, JPEG, TIFF, BMP). You can customize the output format, enable LLM
+    enhancement for better table/math extraction, and control various processing options.
+
+    The converted output will be placed in the same directory as the input file by
+    default, or in a custom directory specified with --output-dir.
+
+  args:
+  - name: input_file
+    required: true
+    help: Path to the document or image file to convert
+
+  flags:
+  - long: --format
+    short: -f
+    arg: format
+    help: 'Output format: markdown, json, html, chunks'
+    allowed:
+    - markdown
+    - json
+    - html
+    - chunks
+    default: markdown
+
+  - long: --output-dir
+    short: -o
+    arg: directory
+    help: 'Output directory (default: same as input file)'
+
+  - long: --vram
+    arg: gb
+    help: Total GPU VRAM limit in GB
+
+  - long: --force-ocr
+    help: Force OCR processing
+
+  - long: --pages
+    short: -p
+    arg: range
+    help: 'Page range to convert (e.g., "0-10,15,20-25")'
+
+  - long: --paginate
+    help: Enable paginated output
+
+  - long: --use-llm
+    short: -l
+    help: 'Enable LLM enhancement for tables, math, forms'
+
+  - long: --llm-service
+    arg: service
+    help: 'LLM provider: gemini, ollama, claude, openai'
+    allowed:
+    - gemini
+    - ollama
+    - claude
+    - openai
+
+  - long: --api-key
+    arg: key
+    help: API key for LLM service
+
+  - long: --no-images
+    help: Disable image extraction
+
+  - long: --debug
+    short: -d
+    help: Enable debug mode
+
+  - long: --move-originals
+    arg: directory
+    help: Move original files to specified directory after conversion
+
+  - long: --keep-originals
+    help: 'Keep original files in place (default behavior)'
+
+  examples:
+  - anything2md convert document.pdf
+  - anything2md c report.docx  # Using alias
+  - anything2md convert presentation.pptx --format json
+  - anything2md convert document.pdf --output-dir ./output
+  - anything2md convert scan.pdf --force-ocr --use-llm --llm-service gemini
+  - anything2md convert large.pdf --pages "0-10,25-30"
+  - anything2md convert file.pdf --move-originals ./archive
+  - anything2md convert image.png --no-images  # Extract text only, no image files
+
+- name: batch
+  alias: b
+  help: |-
+    Process multiple documents in a directory with parallel processing support.
+
+    This command converts all supported files in a directory. It can process directories
+    recursively, skip hidden files, avoid re-converting already processed files, and
+    run multiple conversions in parallel using worker processes.
+
+    Parallel processing: Use --workers to speed up batch conversions. For example,
+    --workers 4 will process 4 files simultaneously. The default is sequential (1 worker).
+
+    The command displays a summary at the end showing total files processed, successes,
+    and failures. If some files fail, it exits with code 7 (partial failure).
+
+  args:
+  - name: input_dir
+    required: true
+    help: Path to directory containing documents to convert
+
+  flags:
+  - long: --format
+    short: -f
+    arg: format
+    help: 'Output format: markdown, json, html, chunks'
+    allowed:
+    - markdown
+    - json
+    - html
+    - chunks
+    default: markdown
+
+  - long: --output-dir
+    short: -o
+    arg: directory
+    help: 'Output directory (default: same as input file)'
+
+  - long: --vram
+    arg: gb
+    help: Total GPU VRAM limit in GB
+
+  - long: --force-ocr
+    help: Force OCR processing
+
+  - long: --pages
+    short: -p
+    arg: range
+    help: 'Page range to convert (e.g., "0-10,15,20-25")'
+
+  - long: --paginate
+    help: Enable paginated output
+
+  - long: --use-llm
+    short: -l
+    help: 'Enable LLM enhancement for tables, math, forms'
+
+  - long: --llm-service
+    arg: service
+    help: 'LLM provider: gemini, ollama, claude, openai'
+    allowed:
+    - gemini
+    - ollama
+    - claude
+    - openai
+
+  - long: --api-key
+    arg: key
+    help: API key for LLM service
+
+  - long: --no-images
+    help: Disable image extraction
+
+  - long: --debug
+    short: -d
+    help: Enable debug mode
+
+  - long: --move-originals
+    arg: directory
+    help: Move original files to specified directory after conversion
+
+  - long: --keep-originals
+    help: 'Keep original files in place (default behavior)'
+
+  - long: --recursive
+    short: -r
+    help: Process directories recursively
+
+  - long: --skip-hidden
+    help: 'Skip hidden files (default behavior)'
+
+  - long: --include-hidden
+    help: Include hidden files in processing
+
+  - long: --skip-processed
+    help: 'Skip files that have already been converted (default behavior)'
+
+  - long: --workers
+    short: -w
+    arg: number
+    help: Number of parallel workers for processing
+    default: "1"
+
+  examples:
+  - anything2md batch ./documents
+  - anything2md b ./docs  # Using alias
+  - anything2md batch ./documents --recursive
+  - anything2md batch ./docs --workers 4 --skip-processed
+  - anything2md batch ./archive --recursive --include-hidden
+  - anything2md batch ./reports --format json --output-dir ./output
+  - anything2md batch ./scans --force-ocr --use-llm --workers 2
+
+- name: config
+  help: Configuration and system management commands
+
+  commands:
+  - name: check
+    help: |-
+      Verify all dependencies are installed and working correctly.
+
+      This command checks:
+      - Docker installation and version
+      - Docker daemon running status
+      - NVIDIA GPU detection (optional)
+      - NVIDIA Container Toolkit (optional, recommended with GPU)
+      - Marker Docker image availability
+
+      Returns success if minimum requirements (Docker + image) are met. GPU components
+      are optional and will show warnings if missing, but won't cause failure.
+
+    examples:
+    - anything2md config check
+
+  - name: pull
+    help: |-
+      Pull or update the marker Docker image from Docker Hub.
+
+      This command downloads the xiaoyao9184/marker Docker image which contains the
+      marker conversion engine. The default tag is 'latest', but you can specify a
+      different version with --tag.
+
+      The command shows download progress and verifies the image after pulling. It
+      displays the image size and creation date upon successful completion.
+
+    flags:
+    - long: --tag
+      arg: tag
+      help: Specific Docker image tag to pull (default is 'latest')
+      default: latest
+
+    examples:
+    - anything2md config pull
+    - anything2md config pull --tag v1.0
+    - anything2md config pull --tag latest  # Explicitly pull latest version
+
+  - name: build
+    help: |-
+      Build the custom marker Docker image with WeasyPrint dependencies.
+
+      This command builds a custom Docker image that extends the base marker image
+      with additional system libraries required for PPTX conversion (Pango libraries
+      for WeasyPrint).
+
+      The custom image is automatically built on first conversion if it doesn't exist,
+      but you can use this command to pre-build it or force a rebuild.
+
+      Use --force to rebuild from scratch (ignores cache), which is useful when:
+      - The upstream marker image has been updated
+      - You suspect the image is corrupted
+      - You want to ensure all layers are fresh
+
+    flags:
+    - long: --force
+      help: Force rebuild without using cache
+
+    examples:
+    - anything2md config build
+    - anything2md config build --force  # Rebuild from scratch
+
+  - name: status
+    help: |-
+      Display comprehensive system status and configuration overview.
+
+      This command shows:
+      - Docker installation status and version
+      - GPU acceleration status (enabled/disabled with details)
+      - Marker Docker image status (size and creation date)
+      - All environment variable values (with API keys masked)
+      - Default configuration values
+      - Supported file types
+      - System readiness for conversions
+
+      Use this command to get a complete overview of your anything2md setup.
+
+    examples:
+    - anything2md config status
+
+  - name: gpu
+    help: |-
+      Display detailed GPU information and availability for acceleration.
+
+      This command shows:
+      - GPU model name and specifications
+      - Total VRAM in GB
+      - Driver version
+      - CUDA version
+      - NVIDIA Container Toolkit status
+      - Whether GPU acceleration is enabled for conversions
+
+      If no GPU is detected, it displays a helpful message indicating the system
+      will use CPU mode. GPU acceleration significantly speeds up conversions,
+      especially for large documents and image-heavy files.
+
+    examples:
+    - anything2md config gpu
+
+  - name: env
+    help: |-
+      Display all ANYTHING2MD_* environment variables with their values.
+
+      This command lists all environment variables used by anything2md, including:
+      - Output format and directory settings
+      - VRAM limit for GPU usage
+      - LLM service configuration
+      - API keys for LLM services (masked by default)
+      - Ollama URL for local LLM
+      - Debug mode setting
+
+      Normal mode shows a human-readable table with descriptions and default values.
+      Export mode (--export) outputs shell-ready export statements that you can
+      copy and paste or source into your shell configuration.
+
+      API keys are masked (shown as **********) by default for security. Use
+      --show-secrets to reveal actual values.
+
+    flags:
+    - long: --export
+      help: Output as export statements for easy shell configuration
+
+    - long: --show-secrets
+      help: Reveal API key values instead of masking them
+
+    examples:
+    - anything2md config env
+    - anything2md config env --export
+    - anything2md config env --export --show-secrets
+    - anything2md config env --export > .env  # Save to file
