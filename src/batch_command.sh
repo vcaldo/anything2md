@@ -24,7 +24,12 @@ force_ocr="${args[--force-ocr]:-}"
 pages="${args[--pages]:-}"
 paginate="${args[--paginate]:-}"
 use_llm="${args[--use-llm]:-}"
-llm_service="${args[--llm-service]:-${ANYTHING2MD_LLM_SERVICE:-$DEFAULT_LLM_SERVICE}}"
+# Only set llm_service if --use-llm is enabled
+if [[ -n "$use_llm" ]]; then
+  llm_service="${args[--llm-service]:-${ANYTHING2MD_LLM_SERVICE:-$DEFAULT_LLM_SERVICE}}"
+else
+  llm_service=""
+fi
 api_key_override="${args[--api-key]:-}"
 no_images="${args[--no-images]:-}"
 debug="${args[--debug]:-}"

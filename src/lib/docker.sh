@@ -217,7 +217,12 @@ build_docker_command() {
           docker_cmd+=("-e" "GOOGLE_API_KEY=${gemini_key}")
           log_debug "Added Gemini API key to environment"
         else
-          log_warning "LLM service 'gemini' selected but no API key provided"
+          log_error "LLM service 'gemini' requires an API key. Please provide it via:"
+          log_error "  1. Command-line: --api-key YOUR_KEY"
+          log_error "  2. Environment: export ANYTHING2MD_GEMINI_API_KEY=YOUR_KEY"
+          log_error "  3. Environment: export GOOGLE_API_KEY=YOUR_KEY"
+          log_error "Or disable LLM by omitting the --use-llm flag"
+          return 1
         fi
         ;;
       claude)
@@ -226,7 +231,12 @@ build_docker_command() {
           docker_cmd+=("-e" "ANTHROPIC_API_KEY=${claude_key}")
           log_debug "Added Claude API key to environment"
         else
-          log_warning "LLM service 'claude' selected but no API key provided"
+          log_error "LLM service 'claude' requires an API key. Please provide it via:"
+          log_error "  1. Command-line: --api-key YOUR_KEY"
+          log_error "  2. Environment: export ANYTHING2MD_ANTHROPIC_API_KEY=YOUR_KEY"
+          log_error "  3. Environment: export ANTHROPIC_API_KEY=YOUR_KEY"
+          log_error "Or disable LLM by omitting the --use-llm flag"
+          return 1
         fi
         ;;
       openai)
@@ -235,7 +245,12 @@ build_docker_command() {
           docker_cmd+=("-e" "OPENAI_API_KEY=${openai_key}")
           log_debug "Added OpenAI API key to environment"
         else
-          log_warning "LLM service 'openai' selected but no API key provided"
+          log_error "LLM service 'openai' requires an API key. Please provide it via:"
+          log_error "  1. Command-line: --api-key YOUR_KEY"
+          log_error "  2. Environment: export ANYTHING2MD_OPENAI_API_KEY=YOUR_KEY"
+          log_error "  3. Environment: export OPENAI_API_KEY=YOUR_KEY"
+          log_error "Or disable LLM by omitting the --use-llm flag"
+          return 1
         fi
         ;;
       ollama)
