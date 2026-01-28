@@ -1,2 +1,128 @@
-# Local dirs
+# anything2md - Project-specific .gitignore
+
+# Local development directories
 plans/
+conversion_tests/
+
+# Output directories (user-generated conversions)
+output/
+converted/
+*.converted/
+
+# Environment files (contain API keys and secrets)
+.env
+.env.local
+.env.*.local
+*.env
+
+# API keys and secrets
+*_api_key*
+*secret*
+*credentials*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Bash temporary files
+*.bak
+*.orig
+
+# Log files
+*.log
+logs/
+
+# Docker volumes and cache
+.cache/
+.docker/
+
+# Test output files
+*.test.md
+*.test.json
+*.test.html
+
+# Generated markdown/json/html files from testing (optional - uncomment if needed)
+# *.md
+# *.json
+# *.html
+
+# Backup files
+backup/
+*.backup
+
+# OS-specific files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor-specific files
+# VS Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*.swn
+.*.sw?
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Ruby/Gem related (for bashly development)
+.bundle/
+vendor/bundle/
+Gemfile.lock
+
+# Node modules (if any JS tooling added)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python (if any Python tooling added)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+
+# Bashly generated files that shouldn't be version controlled
+# (Uncomment if you want to regenerate from source on each machine)
+# anything2md
+# cli
+
+# Docker-related
+docker-compose.override.yml
+
+# System files
+.fuse_hidden*
+.nfs*
