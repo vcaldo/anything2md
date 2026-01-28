@@ -189,6 +189,7 @@ else
 
   # Create temporary directory for job status files
   job_dir=$(mktemp -d)
+  export job_dir
   trap 'rm -rf "$job_dir"' EXIT
 
   # Job slot semaphore
