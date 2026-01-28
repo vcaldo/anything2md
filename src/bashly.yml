@@ -371,3 +371,22 @@ commands:
     - anything2md config env --export
     - anything2md config env --export --show-secrets
     - anything2md config env --export > .env  # Save to file
+
+- name: completions
+  help: |-
+    Generate shell completions for bash and zsh.
+
+    Output a completion script that can be evaluated in your shell to enable
+    tab completion for commands, options, and arguments.
+
+    To enable completions, add the following to your shell configuration file:
+
+    For Bash (~/.bashrc):
+      eval "\$(anything2md completions)"
+
+    For Zsh (~/.zshrc):
+      eval "\$(anything2md completions)"
+
+  examples:
+  - anything2md completions
+  - anything2md completions >> ~/.bashrc

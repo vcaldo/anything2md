@@ -404,29 +404,25 @@ docker ps
 
 ## Shell Completions
 
-Generate shell completions for easier command-line usage:
+Enable tab completion for commands, options, and file arguments.
 
 ### Bash
 
+Add to your `~/.bashrc`:
+
 ```bash
-./anything2md completions bash > /etc/bash_completion.d/anything2md
-# Or for user-level:
-./anything2md completions bash > ~/.bash_completion.d/anything2md
+eval "$(anything2md completions)"
 ```
 
 ### Zsh
 
-```bash
-./anything2md completions zsh > /usr/local/share/zsh/site-functions/_anything2md
-# Or for oh-my-zsh:
-./anything2md completions zsh > ~/.oh-my-zsh/completions/_anything2md
-```
-
-### Fish
+Add to your `~/.zshrc`:
 
 ```bash
-./anything2md completions fish > ~/.config/fish/completions/anything2md.fish
+eval "$(anything2md completions)"
 ```
+
+After adding, reload your shell or run `source ~/.bashrc` (or `~/.zshrc`) to activate completions.
 
 ## Development
 
