@@ -745,6 +745,28 @@ readonly CHUNKING_LOADED=1
 # Default chunk size in pages
 readonly DEFAULT_CHUNK_SIZE=50
 
+# cleanup_temp_dir - Remove temporary directory, handling Docker-created files
+# Docker runs as root, so files may be owned by root. Use Docker to clean up.
+# Args:
+#   $1 - Directory to remove
+cleanup_temp_dir() {
+  local dir="$1"
+
+  if [[ -z "$dir" ]] || [[ ! -d "$dir" ]]; then
+    return 0
+  fi
+
+  # First try normal removal
+  if rm -rf "$dir" 2>/dev/null; then
+    return 0
+  fi
+
+  # If that fails (permission denied), use Docker to clean up
+  log_debug "Using Docker to clean up root-owned files in: $dir"
+  docker run --rm -v "$dir:/cleanup" alpine rm -rf /cleanup/* 2>/dev/null || true
+  rm -rf "$dir" 2>/dev/null || true
+}
+
 # is_pdf_file - Check if file is a PDF based on extension
 # Args:
 #   $1 - File path
@@ -1062,7 +1084,7 @@ process_pdf_in_chunks() {
   # Step 6: Check if we have any successful chunks
   if [[ ${#chunk_files[@]} -eq 0 ]]; then
     log_error "All chunks failed to convert"
-    rm -rf "$temp_dir"
+    cleanup_temp_dir "$temp_dir"
     return "$EXIT_CONVERSION_FAILED"
   fi
 
@@ -1098,7 +1120,7 @@ process_pdf_in_chunks() {
 
   if ! merge_markdown_chunks "$final_output_file" "${chunk_files[@]}"; then
     log_error "Failed to merge chunk outputs"
-    rm -rf "$temp_dir"
+    cleanup_temp_dir "$temp_dir"
     return "$EXIT_CONVERSION_FAILED"
   fi
 
@@ -1106,7 +1128,7 @@ process_pdf_in_chunks() {
   merge_chunk_images "$final_output_dir" "$base_name" "${chunk_dirs[@]}"
 
   # Step 10: Cleanup temporary directory
-  rm -rf "$temp_dir"
+  cleanup_temp_dir "$temp_dir"
 
   log_success "Chunked conversion complete: $final_output_file"
 
