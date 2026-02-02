@@ -9,6 +9,7 @@ Convert any document or image to Markdown using AI-powered processing. A bash CL
 - **GPU Acceleration**: Automatic NVIDIA GPU detection and passthrough for faster processing
 - **LLM Enhancement**: Optional integration with Gemini, Claude, OpenAI, or Ollama for improved conversion quality
 - **Batch Processing**: Convert entire directories with parallel processing support
+- **Chunked Processing**: Split large PDFs into smaller chunks for memory-efficient processing
 - **Smart Filtering**: Skip hidden files, already-processed files, and customize with page ranges
 - **Docker-Based**: No complex dependencies - just Docker and optionally GPU support
 - **Comprehensive CLI**: Built with bashly for robust argument parsing, help text, and shell completions
@@ -98,6 +99,9 @@ This command verifies all dependencies and displays system status.
 
 # Specify output directory
 ./anything2md convert document.pdf --output-dir ./output
+
+# Process large PDFs in chunks (50 pages at a time)
+./anything2md convert large-book.pdf --chunk 50
 ```
 
 ### Batch Convert a Directory
@@ -111,6 +115,9 @@ This command verifies all dependencies and displays system status.
 
 # Skip already-processed files
 ./anything2md batch ./documents --skip-processed
+
+# Process large PDFs in chunks with parallel workers
+./anything2md batch ./large-pdfs --chunk 50 --workers 4
 ```
 
 ### Using LLM Enhancement
@@ -137,6 +144,7 @@ Convert a single file to the specified format.
 - `--format, -f FORMAT`: Output format (markdown, json, html, chunks) [default: markdown]
 - `--output-dir, -o DIR`: Output directory [default: input file directory]
 - `--pages, -p RANGE`: Page range (e.g., "0-5,10,15-20")
+- `--chunk SIZE`: Split PDF into chunks of N pages for processing (e.g., 50)
 - `--use-llm, -l`: Enable LLM enhancement
 - `--llm-service SERVICE`: LLM service (gemini, claude, openai, ollama) [default: gemini]
 - `--force-ocr`: Force OCR for all pages
@@ -155,6 +163,9 @@ Convert a single file to the specified format.
 # Convert specific pages only
 ./anything2md convert book.pdf --pages "0-10,50-60"
 
+# Process large PDF in 50-page chunks
+./anything2md convert large-book.pdf --chunk 50
+
 # Force OCR and use LLM enhancement
 ./anything2md convert scanned.pdf --force-ocr --use-llm
 ```
@@ -172,6 +183,7 @@ Convert all supported files in a directory.
 **Common Options:**
 - `--recursive, -r`: Process subdirectories recursively
 - `--workers, -w N`: Number of parallel workers [default: 1]
+- `--chunk SIZE`: Split PDFs into chunks of N pages for processing
 - `--skip-processed`: Skip files that already have output [default: true]
 - `--include-hidden`: Include hidden files (starting with .)
 - All `convert` command options are also available
@@ -190,6 +202,9 @@ Convert all supported files in a directory.
 
 # Batch with custom output format
 ./anything2md batch ./pdfs --format json --output-dir ./json-output
+
+# Process large PDFs in chunks with parallel workers
+./anything2md batch ./large-pdfs --chunk 50 --workers 4
 ```
 
 For full options, run: `./anything2md batch --help`
@@ -314,6 +329,47 @@ To use LLM enhancement, set the appropriate API key for your chosen service:
 2. Ensure Ollama is running on `http://localhost:11434` (or set custom URL)
 3. Use with: `./anything2md convert file.pdf --use-llm --llm-service ollama`
 
+### Chunked Processing for Large PDFs
+
+When converting very large PDFs (hundreds or thousands of pages), you may encounter memory issues. The `--chunk` option splits the PDF into smaller chunks, processes each chunk separately, and merges the outputs into a single markdown file.
+
+#### How It Works
+
+1. The tool first analyzes the PDF to get the total page count
+2. If the PDF has more pages than the chunk size, it splits into ranges (e.g., "0-49", "50-99", "100-149")
+3. Each chunk is processed independently using the marker engine
+4. All chunk outputs are merged into a single markdown file with `---` separators between chunks
+5. Images from all chunks are collected and renumbered sequentially
+
+#### Usage Examples
+
+```bash
+# Process a large PDF in 50-page chunks (default)
+./anything2md convert large-book.pdf --chunk 50
+
+# Use smaller chunks for very large PDFs or limited memory
+./anything2md convert huge-document.pdf --chunk 25
+
+# Batch process with chunking and parallel workers
+./anything2md batch ./large-pdfs --chunk 50 --workers 4
+
+# Combine chunking with LLM enhancement
+./anything2md convert textbook.pdf --chunk 50 --use-llm
+```
+
+#### When to Use Chunking
+
+- **Large PDFs**: Documents with hundreds or thousands of pages
+- **Memory constraints**: When you're running out of RAM or VRAM
+- **Stability**: For more reliable processing of complex documents
+- **Progress visibility**: See progress as each chunk completes
+
+#### Notes
+
+- If the PDF has fewer pages than the chunk size, it processes normally without chunking
+- The `--chunk` option only affects PDF files; other formats are processed normally
+- When combined with `--pages`, the user-specified page range takes precedence
+
 ## Exit Codes
 
 The CLI uses specific exit codes to indicate different error conditions:
@@ -380,6 +436,7 @@ docker ps
 **Problem**: Out of memory during conversion
 
 **Solution**:
+- Use chunked processing for large PDFs: `--chunk 50` (processes 50 pages at a time)
 - Limit VRAM usage: `--vram 4` (adjust number based on available memory)
 - Process fewer pages at a time: `--pages "0-50"`
 - Reduce parallel workers in batch mode: `--workers 2`
@@ -444,7 +501,8 @@ anything2md/
 │       ├── gpu.sh              # GPU detection
 │       ├── docker.sh           # Docker command building
 │       ├── files.sh            # File operations
-│       └── conversion.sh       # Conversion orchestration
+│       ├── conversion.sh       # Conversion orchestration
+│       └── chunking.sh         # PDF chunking utilities
 ├── anything2md                 # Generated CLI executable
 └── README.md                   # This file
 ```
