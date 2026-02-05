@@ -224,9 +224,9 @@ if [[ "$workers" -eq 1 ]]; then
   # Sequential processing
   for file in "${files[@]}"; do
     if process_file "$file"; then
-      ((success_count++))
+      ((++success_count))
     else
-      ((failure_count++))
+      ((++failure_count))
       failed_files+=("$file")
     fi
   done
@@ -248,7 +248,7 @@ else
     while [[ "$job_count" -ge "$workers" ]]; do
       # Wait for any job to finish
       wait -n 2>/dev/null || true
-      ((job_count--))
+      ((job_count--)) || true
     done
 
     # Start background job
@@ -261,8 +261,8 @@ else
       fi
     ) &
 
-    ((job_count++))
-    ((job_index++))
+    ((++job_count))
+    ((++job_index))
   done
 
   # Wait for all remaining jobs to complete
@@ -273,9 +273,9 @@ else
     [[ -e "$status_file" ]] || continue
     status=$(cat "$status_file")
     if [[ "$status" == "success" ]]; then
-      ((success_count++))
+      ((++success_count))
     else
-      ((failure_count++))
+      ((++failure_count))
       file_index=$(basename "$status_file" .status)
       if [[ -e "$job_dir/$file_index.file" ]]; then
         failed_files+=("$(cat "$job_dir/$file_index.file")")
