@@ -56,8 +56,19 @@ fi
 # Handle --pages option
 if [[ -n "${args[--pages]}" ]]; then
   validate_page_range "${args[--pages]}" || exit $?
-  additional_options+=("--pages=${args[--pages]}")
+  additional_options+=("--page_range=${args[--pages]}")
   log_debug "Page range: ${args[--pages]}"
+fi
+
+# Handle --chunk option
+chunk_size=""
+if [[ -n "${args[--chunk]}" ]]; then
+  chunk_size="${args[--chunk]}"
+  if [[ ! "$chunk_size" =~ ^[1-9][0-9]*$ ]]; then
+    log_error "Chunk size must be a positive number: $chunk_size"
+    exit "$EXIT_INVALID_ARGS"
+  fi
+  log_debug "Chunk size: $chunk_size pages"
 fi
 
 # Handle --paginate flag
@@ -106,7 +117,7 @@ fi
 log_info "Converting: $(basename "$input_file")"
 
 # Call the conversion function with all parameters
-# Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, relative_path, additional_options...
+# Parameters: input_file, output_dir, output_format, use_llm, llm_service, api_key_override, relative_path, chunk_size, additional_options...
 # Note: relative_path is empty string for single-file conversion (no directory structure preservation needed)
 convert_single_file \
   "$input_file" \
@@ -116,6 +127,7 @@ convert_single_file \
   "$llm_service" \
   "$api_key_override" \
   "" \
+  "$chunk_size" \
   "${additional_options[@]}"
 
 conversion_exit_code=$?

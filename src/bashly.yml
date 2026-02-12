@@ -81,6 +81,10 @@ commands:
     arg: range
     help: 'Page range to convert (e.g., "0-10,15,20-25")'
 
+  - long: --chunk
+    arg: size
+    help: 'Split PDF into chunks of N pages for processing (e.g., 50)'
+
   - long: --paginate
     help: Enable paginated output
 
@@ -122,6 +126,7 @@ commands:
   - anything2md convert document.pdf --output-dir ./output
   - anything2md convert scan.pdf --force-ocr --use-llm --llm-service gemini
   - anything2md convert large.pdf --pages "0-10,25-30"
+  - anything2md convert large.pdf --chunk 50  # Process in 50-page chunks
   - anything2md convert file.pdf --move-originals ./archive
   - anything2md convert image.png --no-images  # Extract text only, no image files
 
@@ -173,6 +178,10 @@ commands:
     short: -p
     arg: range
     help: 'Page range to convert (e.g., "0-10,15,20-25")'
+
+  - long: --chunk
+    arg: size
+    help: 'Split PDF into chunks of N pages for processing (e.g., 50)'
 
   - long: --paginate
     help: Enable paginated output
@@ -235,6 +244,7 @@ commands:
   - anything2md batch ./archive --recursive --include-hidden
   - anything2md batch ./reports --format json --output-dir ./output
   - anything2md batch ./scans --force-ocr --use-llm --workers 2
+  - anything2md batch ./large-pdfs --chunk 50 --workers 4  # Process large PDFs in chunks
 
 - name: config
   help: Configuration and system management commands

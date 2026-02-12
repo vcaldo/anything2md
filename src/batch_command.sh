@@ -43,6 +43,13 @@ include_hidden="${args[--include-hidden]:-}"
 skip_processed="${args[--skip-processed]:-1}"  # Default: skip processed files
 workers="${args[--workers]:-1}"
 
+# Chunking option
+chunk_size="${args[--chunk]:-}"
+if [[ -n "$chunk_size" ]] && [[ ! "$chunk_size" =~ ^[1-9][0-9]*$ ]]; then
+  log_error "Chunk size must be a positive number: $chunk_size"
+  exit "$EXIT_INVALID_ARGS"
+fi
+
 # Validate conflicting options
 if [[ -n "$move_originals" && -n "$keep_originals" ]]; then
   log_error "Cannot use both --move-originals and --keep-originals"
@@ -76,7 +83,7 @@ fi
 additional_options=()
 [[ -n "$vram" ]] && additional_options+=("--vram" "$vram")
 [[ -n "$force_ocr" ]] && additional_options+=("--force_ocr")
-[[ -n "$pages" ]] && additional_options+=("--pages" "$pages")
+[[ -n "$pages" ]] && additional_options+=("--page_range" "$pages")
 [[ -n "$paginate" ]] && additional_options+=("--paginate")
 [[ -n "$no_images" ]] && additional_options+=("--disable_image_extraction")
 
@@ -156,7 +163,7 @@ process_file() {
   log_info "Processing: $(basename "$file")"
 
   # Call convert_single_file from conversion.sh
-  # Pass relative_path as 7th parameter for directory structure preservation
+  # Pass relative_path as 7th parameter and chunk_size as 8th for directory structure preservation
   if convert_single_file \
     "$file" \
     "$file_output_dir" \
@@ -165,6 +172,7 @@ process_file() {
     "$llm_service" \
     "$api_key_override" \
     "$relative_path" \
+    "$chunk_size" \
     "${additional_options[@]+"${additional_options[@]}"}"; then
 
     # Handle move/keep originals
@@ -197,17 +205,28 @@ export -f calculate_relative_path
 export -f ensure_output_directory
 export -f is_already_converted
 export -f move_original_file
-export output_format use_llm llm_service api_key_override move_originals input_dir
+export output_format use_llm llm_service api_key_override move_originals input_dir chunk_size
 export -a additional_options
+
+# Export chunking functions for parallel workers
+export -f process_pdf_in_chunks
+export -f get_pdf_page_count
+export -f generate_chunk_ranges
+export -f create_temp_chunk_dir
+export -f merge_markdown_chunks
+export -f merge_chunk_images
+export -f find_chunk_markdown
+export -f is_pdf_file
+export -f convert_single_file_direct
 
 # Process files based on worker count
 if [[ "$workers" -eq 1 ]]; then
   # Sequential processing
   for file in "${files[@]}"; do
     if process_file "$file"; then
-      ((success_count++))
+      ((++success_count))
     else
-      ((failure_count++))
+      ((++failure_count))
       failed_files+=("$file")
     fi
   done
@@ -229,7 +248,7 @@ else
     while [[ "$job_count" -ge "$workers" ]]; do
       # Wait for any job to finish
       wait -n 2>/dev/null || true
-      ((job_count--))
+      ((job_count--)) || true
     done
 
     # Start background job
@@ -242,8 +261,8 @@ else
       fi
     ) &
 
-    ((job_count++))
-    ((job_index++))
+    ((++job_count))
+    ((++job_index))
   done
 
   # Wait for all remaining jobs to complete
@@ -254,9 +273,9 @@ else
     [[ -e "$status_file" ]] || continue
     status=$(cat "$status_file")
     if [[ "$status" == "success" ]]; then
-      ((success_count++))
+      ((++success_count))
     else
-      ((failure_count++))
+      ((++failure_count))
       file_index=$(basename "$status_file" .status)
       if [[ -e "$job_dir/$file_index.file" ]]; then
         failed_files+=("$(cat "$job_dir/$file_index.file")")

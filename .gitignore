@@ -126,3 +126,5 @@ docker-compose.override.yml
 # System files
 .fuse_hidden*
 .nfs*
+
+content/

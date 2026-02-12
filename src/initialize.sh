@@ -41,6 +41,10 @@ source "${SCRIPT_DIR}/src/lib/files.sh"
 # shellcheck source=src/lib/conversion.sh
 source "${SCRIPT_DIR}/src/lib/conversion.sh"
 
+# 9. Custom chunking library (PDF chunking utilities)
+# shellcheck source=src/lib/chunking.sh
+source "${SCRIPT_DIR}/src/lib/chunking.sh"
+
 # Set DEBUG mode from environment or flag
 # This will be checked in individual commands via args[--debug]
 # But also respect ANYTHING2MD_DEBUG environment variable

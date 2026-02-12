@@ -144,7 +144,8 @@ handle_conversion_result() {
 #   $5 - llm_service - LLM service name (optional)
 #   $6 - api_key_override - API key override (optional)
 #   $7 - relative_path - Relative path for preserving directory structure (optional)
-#   $8+ - additional_opts - Additional options
+#   $8 - chunk_size - Chunk size for PDF splitting (optional)
+#   $9+ - additional_opts - Additional options
 # Returns:
 #   Exit code indicating success or failure
 convert_single_file() {
@@ -155,12 +156,22 @@ convert_single_file() {
   local llm_service="${5:-}"
   local api_key_override="${6:-}"
   local relative_path="${7:-}"
+  local chunk_size="${8:-}"
 
   # Additional options passed as remaining arguments
-  shift 7 || true
+  shift 8 || true
   local additional_opts=("$@")
 
   log_debug "Starting conversion of: $input_file"
+
+  # Check if chunking is requested for PDF files
+  if [[ -n "$chunk_size" ]] && is_pdf_file "$input_file"; then
+    log_debug "Chunked processing enabled with size: $chunk_size"
+    process_pdf_in_chunks "$input_file" "$output_dir" "$output_format" \
+      "$chunk_size" "$use_llm" "$llm_service" "$api_key_override" \
+      "$relative_path" "${additional_opts[@]}"
+    return $?
+  fi
 
   # Step 1: Validate input file
   if ! validate_file_exists "$input_file"; then
